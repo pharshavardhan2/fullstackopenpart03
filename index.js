@@ -20,6 +20,7 @@ app.get('/api/persons', (req, res, next) => {
 app.get('/info', (req, res) => {
   Person.countDocuments({})
     .then(count => res.send(`<p>Phonebook has info for ${count} people</p><p>${new Date().toString()}</p>`))
+    .catch(error => next(error))
 })
 
 app.get('/api/persons/:id', (req, res, next) => {
@@ -38,15 +39,9 @@ app.delete('/api/persons/:id', (req, res, next) => {
 })
 
 app.post('/api/persons', (req, res, next) => {
-  const body = req.body
-  if (!body.name || !body.number) return res.status(400).json({
-    error: "number or name missing"
-  })
+  const { name, number } = req.body
 
-  const person = new Person({
-    name: body.name,
-    number: body.number
-  })
+  const person = new Person({ name, number })
 
   person.save()
     .then(savedPerson => {
@@ -56,17 +51,13 @@ app.post('/api/persons', (req, res, next) => {
 })
 
 app.put('/api/persons/:id', (req, res, next) => {
-  const body = req.body
-  if (!body.name || !body.number) return res.status(400).json({
-    error: "number or name missing"
-  })
+  const { name, number } = req.body
 
-  const person = {
-    name: body.name,
-    number: body.number
-  }
-
-  Person.findByIdAndUpdate(req.params.id, person, {new: true})
+  Person.findByIdAndUpdate(
+    req.params.id, 
+    { name, number }, 
+    { new: true, runValidators: true, context: 'query' }
+  )
     .then(updatedPerson => res.json(updatedPerson))
     .catch(error => next(error))
 })
@@ -81,6 +72,7 @@ const errorHandler = (error, req, res, next) => {
   console.error(error.message)
 
   if (error.name === 'CastError') return res.status(400).json({error: 'bad formatted id'})
+  if (error.name === 'ValidationError') return res.status(400).json({error: error.message})
 
   next(error)
 }
